@@ -1,0 +1,10 @@
+celery
+fastapi
+python-multipart 
+uvicorn
+pydantic
+pytesseract
+redis
+websockets
+pytest
+httpx

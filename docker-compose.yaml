@@ -1,0 +1,75 @@
+version: "3.3"
+
+services:
+  backend:
+    build: ./backend
+    volumes:
+    - ./backend/app:/app
+    ports:
+      - "5000:8000"
+    command: uvicorn main:app --host 0.0.0.0 --reload
+    environment:
+      - FRONTEND_URL="*"
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - ocrnetwork
+    depends_on:
+      - worker
+
+  
+  worker:
+    build: ./worker
+    volumes:
+      - ./worker:/app
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+    networks:
+      - ocrnetwork
+
+  redis:
+    image: redis
+    ports:
+      - 6379:6379
+    networks:
+      - ocrnetwork
+  
+  backend-test:
+    build: ./backend
+    volumes:
+    - ./backend/app:/app
+    - ./backend/tests:/app/tests
+    command: python -m pytest tests -p no:cacheprovider
+    environment:
+      - FRONTEND_URL="*"
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - ocrnetwork
+    depends_on:
+      - worker
+      - backend
+      - redis
+    
+  celerydashboard:
+    image: mher/flower:2.0
+    command: celery flower
+    environment:
+    - CELERY_BROKER_URL=redis://redis:6379/0
+    - FLOWER_PORT=5555
+    ports:
+      - "0.0.0.0:5555:5555"
+    depends_on:
+      - backend
+      - redis
+      - worker
+    volumes:
+      - ./worker:/app
+    networks:
+      - ocrnetwork
+  
+networks:
+  ocrnetwork:
